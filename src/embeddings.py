@@ -1,20 +1,20 @@
 """Embeddings module.
 
-Provides Nomic Embeddings for the RAG pipeline.
+Provides local embeddings via Ollama for the RAG pipeline.
 """
 
-from langchain_nomic.embeddings import NomicEmbeddings
+from langchain_ollama import OllamaEmbeddings
 
-from src.config import EMBEDDING_MODEL, NOMIC_API_KEY
+from src.config import OLLAMA_BASE_URL, OLLAMA_EMBED_MODEL
 
 
-def get_embeddings() -> NomicEmbeddings:
-    """Get a NomicEmbeddings instance.
+def get_embeddings() -> OllamaEmbeddings:
+    """Get an OllamaEmbeddings instance.
 
     Returns:
-        Configured NomicEmbeddings instance.
+        Configured OllamaEmbeddings instance.
     """
-    return NomicEmbeddings(
-        model=EMBEDDING_MODEL,
-        nomic_api_key=NOMIC_API_KEY,
+    return OllamaEmbeddings(
+        model=OLLAMA_EMBED_MODEL,
+        base_url=OLLAMA_BASE_URL,
     )

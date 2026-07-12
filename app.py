@@ -26,7 +26,7 @@ from langgraph_backend import (
     load_conversation,
     clean_title,
 )
-from src.config import UPLOAD_DIR, GROQ_API_KEY, NOMIC_API_KEY
+from src.config import UPLOAD_DIR
 from src.resource_manager import load_resources
 
 
@@ -38,21 +38,11 @@ st.set_page_config(
     layout="wide",
 )
 
-# ---------- API Key Check ----------
+# ---------- Ollama Check ----------
 
-missing_keys = []
-if not GROQ_API_KEY:
-    missing_keys.append("GROQ_API_KEY")
-if not NOMIC_API_KEY:
-    missing_keys.append("NOMIC_API_KEY")
-
-if missing_keys:
-    st.error(
-        f"Missing API keys: {', '.join(missing_keys)}. "
-        f"Please set them in your `.env` file. "
-        f"See `.env.example` for reference."
-    )
-    st.stop()
+# No API keys needed — Ollama runs locally. Make sure Ollama is running
+# (`ollama serve`) with the required models pulled
+# (`ollama pull llama3.2` and `ollama pull nomic-embed-text`).
 
 # ---------- Session Initialization ----------
 
