@@ -1074,7 +1074,7 @@ requires-dist = [
     { name = "langchain-nomic" },
     { name = "langchain-text-splitters" },
     { name = "langgraph" },
-    { name = "langgraph-checkpoint-sqlite" },
+    { name = "langgraph-checkpoint-sqlite", specifier = ">=3.1.0" },
     { name = "nomic" },
     { name = "pypdf" },
     { name = "python-dotenv" },

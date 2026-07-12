@@ -5,19 +5,20 @@ description = "RAG Pipeline with LangGraph, Groq, FAISS, and Nomic Embeddings"
 readme = "README.md"
 requires-python = ">=3.14"
 dependencies = [
-    "langchain-groq",
-    "langchain-nomic",
+    "langchain-ollama",
     "langchain-community",
     "faiss-cpu",
     "langgraph",
     "streamlit",
     "pypdf",
     "python-dotenv",
-    "nomic",
     "langchain",
     "langchain-text-splitters",
+    "langgraph-checkpoint-sqlite>=3.1.0",
 ]
 
 [build-system]
 requires = ["hatchling"]
 build-backend = "hatchling.build"
+[tool.uv]
+package = false

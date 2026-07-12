@@ -9,13 +9,15 @@ Orchestrates the RAG workflow with:
 - Resource metadata tracking for the LLM judge
 """
 
+import re
 import shutil
 import sqlite3
+import traceback
 import uuid
-from typing import Annotated, Literal
+from typing import Annotated, Generator, Literal
 
 from langchain_core.documents import Document
-from langchain_core.messages import BaseMessage
+from langchain_core.messages import AIMessage, BaseMessage, SystemMessage
 from langgraph.graph import StateGraph, START, END
 from langgraph.graph.message import add_messages
 from langgraph.checkpoint.sqlite import SqliteSaver
@@ -30,7 +32,7 @@ from src.vector_store import (
     format_retrieved_context,
     add_to_vector_store,
 )
-from src.rag_chain import create_llm, RAG_PROMPT
+from src.rag_chain import create_llm, RAG_SYSTEM_TEMPLATE
 from src.judge import judge_relevance
 from src.text_splitter import split_documents
 from src.document_loader import load_document
@@ -202,30 +204,60 @@ def judge_node(state: ChatState) -> dict:
     return {"use_rag": use_rag}
 
 
-def rag_chat_node(state: ChatState) -> dict:
-    """Generate response with RAG (retrieved context + question)."""
+def rag_chat_node(state: ChatState) -> Generator[dict, None, None]:
+    """Generate RAG response with token-level streaming from the LLM.
+
+    Yields each token chunk as it arrives so the frontend can display
+    incremental output instead of waiting for the full response.
+
+    Uses AIMessage (not AIMessageChunk) with a fixed id so the SQLite
+    checkpointer can cleanly serialize/deserialize the state. Without
+    this, chatbot.get_state() would fail and no previous threads would
+    load.
+    """
     messages = state["messages"]
     if not messages:
-        return {"messages": []}
+        return
 
-    user_message = messages[-1].content
     context = state.get("retrieved_context", "")
     llm = create_llm()
 
-    chain = RAG_PROMPT | llm
-    response = chain.invoke({"context": context, "question": user_message})
-    return {"messages": [response]}
+    system_message = SystemMessage(content=RAG_SYSTEM_TEMPLATE.format(context=context))
+    full_messages = [system_message] + list(messages)
+
+    full_content = ""
+    response_id = None
+    for chunk in llm.stream(full_messages):
+        if chunk.content:
+            if response_id is None:
+                response_id = chunk.id
+            full_content += chunk.content
+            yield {"messages": [AIMessage(content=full_content, id=response_id)]}
 
 
-def simple_chat_node(state: ChatState) -> dict:
-    """Generate a plain LLM response without RAG context."""
+def simple_chat_node(state: ChatState) -> Generator[dict, None, None]:
+    """Generate a plain LLM response with token-level streaming.
+
+    Yields each token chunk as it arrives so the frontend can display
+    incremental output instead of waiting for the full response.
+
+    Uses AIMessage (not AIMessageChunk) with a fixed id so the SQLite
+    checkpointer can cleanly serialize/deserialize the state.
+    """
     messages = state["messages"]
     if not messages:
-        return {"messages": []}
+        return
 
     llm = create_llm()
-    response = llm.invoke(messages)
-    return {"messages": [response]}
+
+    full_content = ""
+    response_id = None
+    for chunk in llm.stream(messages):
+        if chunk.content:
+            if response_id is None:
+                response_id = chunk.id
+            full_content += chunk.content
+            yield {"messages": [AIMessage(content=full_content, id=response_id)]}
 
 
 # ---------- Conditional Routing ----------
@@ -235,6 +267,48 @@ def route_after_judge(state: ChatState) -> Literal["rag_chat_node", "simple_chat
     if state.get("use_rag", False):
         return "rag_chat_node"
     return "simple_chat_node"
+
+
+# Simple greeting patterns — common casual openers that never need RAG
+_GREETING_RE = re.compile(
+    r"^"
+    r"(hi+|hello+|hey|howdy|greetings|sup|yo"
+    r"|what'?s\s+up|how'?s\s+(it\s+going|everything|life|you|your\s+day)"
+    r"|good\s+(morning|afternoon|evening|day)"
+    r"|nice\s+to\s+(meet|see)\s+you"
+    r"|(i'?m|i\s+am)\s+(good|fine|great|doing\s+well)"
+    r"|how\s+(are|'re)\s+you"
+    r"|long\s+time\s+no\s+see"
+    r"|cheers|hiya|heya|'sup|was\s+sup"
+    r")"
+    r"\s*[.!?]*\s*$",
+    re.IGNORECASE,
+)
+
+
+def is_greeting(text: str) -> bool:
+    """Check whether a message looks like casual chat, not a document query."""
+    return bool(_GREETING_RE.match(text.strip()))
+
+
+def route_from_start(state: ChatState) -> Literal["retrieve_node", "simple_chat_node"]:
+    """Route to RAG pipeline or plain chat.
+
+    Skips retrieval entirely when:
+    - No documents are indexed, OR
+    - The message is a simple greeting / casual chat
+
+    This avoids paying for an embedding-API call and a judge LLM call on
+    every single message when there is nothing to retrieve from.
+    """
+    if not vector_store_manager.has_index():
+        return "simple_chat_node"
+
+    messages = state["messages"]
+    if messages and is_greeting(messages[-1].content):
+        return "simple_chat_node"
+
+    return "retrieve_node"
 
 
 # ---------- Graph Compilation ----------
@@ -248,7 +322,11 @@ def build_graph() -> StateGraph:
     graph.add_node("rag_chat_node", rag_chat_node)
     graph.add_node("simple_chat_node", simple_chat_node)
 
-    graph.add_edge(START, "retrieve_node")
+    graph.add_conditional_edges(
+        START,
+        route_from_start,
+        {"retrieve_node": "retrieve_node", "simple_chat_node": "simple_chat_node"},
+    )
     graph.add_edge("retrieve_node", "judge_node")
     graph.add_conditional_edges(
         "judge_node",
@@ -328,8 +406,9 @@ def load_conversation(thread_id: str) -> list:
         )
         if state and state.values and "messages" in state.values:
             return state.values["messages"]
-    except Exception:
-        pass
+    except Exception as e:
+        print(f"[load_conversation] get_state failed for {thread_id}: {e}")
+        traceback.print_exc()
     return []
 
 

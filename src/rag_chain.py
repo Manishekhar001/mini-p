@@ -1,31 +1,34 @@
 """RAG retrieval + generation chain.
 
-Combines document retrieval and LLM generation using Groq.
+Combines document retrieval and LLM generation using Ollama (local).
 """
 
-from langchain_core.prompts import ChatPromptTemplate
-from langchain_groq import ChatGroq
+from langchain_ollama import ChatOllama
 
-from src.config import GROQ_MODEL, GROQ_API_KEY, TEMPERATURE, MAX_TOKENS
+from src.config import OLLAMA_BASE_URL, OLLAMA_LLM_MODEL, TEMPERATURE, MAX_TOKENS
 
-# RAG prompt template
-RAG_PROMPT = ChatPromptTemplate.from_messages([
-    (
-        "system",
-        "You are a helpful AI assistant. Answer the user's question based on the "
-        "provided context. If the context doesn't contain enough information, "
-        "say so and use your general knowledge to help.\n\n"
-        "Context:\n{context}",
-    ),
-    ("human", "{question}"),
-])
+# RAG system prompt template. Kept as a plain string (not a ChatPromptTemplate)
+# because rag_chat_node needs to splice this in front of the FULL conversation
+# history, not just the latest question -- see langgraph_backend.rag_chat_node.
+RAG_SYSTEM_TEMPLATE = (
+    "You are a helpful AI assistant. Answer the user's question based on the "
+    "provided context. If the context doesn't contain enough information, "
+    "say so and use your general knowledge to help.\n\n"
+    "Context:\n{context}"
+)
 
 
-def create_llm() -> ChatGroq:
-    """Create a Groq LLM instance."""
-    return ChatGroq(
-        model=GROQ_MODEL,
-        api_key=GROQ_API_KEY,
-        temperature=TEMPERATURE,
-        max_tokens=MAX_TOKENS,
-    )
+_llm_instance: ChatOllama | None = None
+
+
+def create_llm() -> ChatOllama:
+    """Get a cached Ollama LLM instance (created once, reused after that)."""
+    global _llm_instance
+    if _llm_instance is None:
+        _llm_instance = ChatOllama(
+            model=OLLAMA_LLM_MODEL,
+            base_url=OLLAMA_BASE_URL,
+            temperature=TEMPERATURE,
+            num_predict=MAX_TOKENS,
+        )
+    return _llm_instance

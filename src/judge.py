@@ -64,4 +64,12 @@ def judge_relevance(
     })
 
     verdict = response.content.strip().upper()
+
+    # IMPORTANT: check the negative case FIRST. "RELEVANT" is a literal
+    # substring of "NOT_RELEVANT" (N-O-T-_-R-E-L-E-V-A-N-T), so a naive
+    # `"RELEVANT" in verdict` check matches BOTH possible answers and
+    # always returns True. That was the actual bug -- the judge's real
+    # decision was being discarded every time.
+    if "NOT_RELEVANT" in verdict or "NOT RELEVANT" in verdict:
+        return False
     return "RELEVANT" in verdict

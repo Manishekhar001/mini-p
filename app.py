@@ -13,6 +13,8 @@ import streamlit as st
 
 from langchain_core.messages import HumanMessage
 
+import traceback
+
 from langgraph_backend import (
     chatbot,
     vector_store_manager,
@@ -104,8 +106,9 @@ def switch_thread(thread_id: str) -> None:
             used_rag = state.values.get("use_rag", False)
             if used_rag and last_context and temp_messages and temp_messages[-1]["role"] == "assistant":
                 temp_messages[-1]["citations"] = last_context
-    except Exception:
-        pass
+    except Exception as e:
+        print(f"[switch_thread] get_state failed: {e}")
+        traceback.print_exc()
 
     if not temp_messages:
         temp_messages = load_conversation(thread_id)
@@ -138,8 +141,9 @@ if not st.session_state["message_history"]:
                 loaded[-1]["citations"] = last_context
 
             st.session_state["message_history"] = loaded
-    except Exception:
-        pass
+    except Exception as e:
+        print(f"[auto-load] get_state failed: {e}")
+        traceback.print_exc()
 
 
 # ---------- Sidebar ----------
@@ -178,13 +182,14 @@ with st.sidebar:
                     if chunks > 0:
                         total_chunks += chunks
                         st.session_state["indexed_files"].add(uploaded_file.name)
-                        st.success(f"✓ {uploaded_file.name} ({chunks} chunks)")
+                        st.toast(f"✓ {uploaded_file.name} ({chunks} chunks)", icon="✅")
                     else:
                         st.warning(f"⚠ {uploaded_file.name} — no content extracted")
 
             if total_chunks > 0:
                 st.session_state["has_indexed"] = True
-                st.info(f"✅ Total: {total_chunks} chunks indexed.")
+                st.toast(f"✅ Total: {total_chunks} chunks indexed.", icon="✅")
+                st.rerun()
         else:
             st.info("All files already indexed. Upload new files to add more.")
 
@@ -296,34 +301,51 @@ if user_input:
 
     with st.chat_message("assistant"):
         placeholder = st.empty()
+        status_placeholder = st.empty()
+        status_placeholder.info("🤔 Thinking...")
         full_response = ""
         citations = ""
         used_rag = False
+        first_token = True
 
-        for chunk, metadata in chatbot.stream(
+        # Use stream_mode="values" so we get the full state after every
+        # superstep. This lets us capture use_rag + retrieved_context
+        # directly from the stream, avoiding a separate get_state() call,
+        # AND show step-by-step status (searching → judging → generating).
+        for event in chatbot.stream(
             {"messages": [HumanMessage(user_input)]},
             config=config,
-            stream_mode="messages",
+            stream_mode="values",
         ):
-            node = metadata.get("langgraph_node", "")
-            if hasattr(chunk, "content") and (not node or node in ("rag_chat_node", "simple_chat_node")):
-                full_response += chunk.content
-                placeholder.markdown(full_response + "▌")
+            # Capture RAG fields as soon as they appear in the state
+            used_rag = event.get("use_rag", used_rag)
+            citations = event.get("retrieved_context", citations)
 
+            # Show step-by-step status based on which fields appeared
+            messages = event.get("messages", [])
+            if messages and messages[-1].type == "ai":
+                current_text = messages[-1].content or ""
+                if current_text:
+                    if first_token:
+                        status_placeholder.empty()
+                        first_token = False
+                    full_response = current_text
+                    placeholder.markdown(full_response + "▌")
+            elif "use_rag" in event:
+                status_placeholder.info("⚖️ Evaluating relevance...")
+            elif "retrieved_context" in event:
+                status_placeholder.info("🔍 Searching documents...")
+            # else: still in initial "🤔 Thinking..." phase
+
+        if first_token:
+            status_placeholder.empty()
         placeholder.markdown(full_response)
 
-    try:
-        final_state = chatbot.get_state(config)
-        if final_state and final_state.values:
-            used_rag = final_state.values.get("use_rag", False)
-            citations = final_state.values.get("retrieved_context", "")
-
-            if used_rag:
-                st.caption("📚 *Answered from your documents*")
-            else:
-                st.caption("💬 *Answered from general knowledge*")
-    except Exception:
-        pass
+    # Show RAG / plain chat indicator
+    if used_rag:
+        st.caption("📚 *Answered from your documents*")
+    else:
+        st.caption("💬 *Answered from general knowledge*")
 
     ai_entry = {
         "role": "assistant",

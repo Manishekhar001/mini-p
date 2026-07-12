@@ -15,17 +15,16 @@ FAISS_INDEX_PATH = FAISS_INDEX_DIR / "index.faiss"
 DB_PATH = PROJECT_ROOT / "chatbot.db"
 RESOURCES_PATH = DATA_DIR / "resources.json"
 
-# Embedding settings
-EMBEDDING_MODEL = os.getenv("EMBEDDING_MODEL", "nomic-embed-text-v1.5")
+# Ollama settings
+OLLAMA_BASE_URL = os.getenv("OLLAMA_BASE_URL", "http://localhost:11434")
+OLLAMA_LLM_MODEL = os.getenv("OLLAMA_LLM_MODEL", "llama3.2")
+OLLAMA_EMBED_MODEL = os.getenv("OLLAMA_EMBED_MODEL", "nomic-embed-text")
 
 # Text splitting settings
 CHUNK_SIZE = int(os.getenv("CHUNK_SIZE", "1000"))
 CHUNK_OVERLAP = int(os.getenv("CHUNK_OVERLAP", "200"))
 
 # LLM settings
-GROQ_MODEL = os.getenv("GROQ_MODEL", "llama-3.1-8b-instant")
-GROQ_API_KEY = os.getenv("GROQ_API_KEY", "")
-NOMIC_API_KEY = os.getenv("NOMIC_API_KEY", "")
 TEMPERATURE = float(os.getenv("TEMPERATURE", "0.7"))
 MAX_TOKENS = int(os.getenv("MAX_TOKENS", "4096"))
 
