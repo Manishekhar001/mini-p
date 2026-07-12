@@ -15,10 +15,14 @@ FAISS_INDEX_PATH = FAISS_INDEX_DIR / "index.faiss"
 DB_PATH = PROJECT_ROOT / "chatbot.db"
 RESOURCES_PATH = DATA_DIR / "resources.json"
 
-# Ollama settings
+# Ollama settings (for embeddings — lightweight, runs locally)
 OLLAMA_BASE_URL = os.getenv("OLLAMA_BASE_URL", "http://localhost:11434")
-OLLAMA_LLM_MODEL = os.getenv("OLLAMA_LLM_MODEL", "llama3.2")
 OLLAMA_EMBED_MODEL = os.getenv("OLLAMA_EMBED_MODEL", "nomic-embed-text")
+
+# OpenRouter settings (for LLM — free tier, fast cloud inference)
+OPENROUTER_API_KEY = os.getenv("OPENROUTER_API_KEY", "")
+OPENROUTER_BASE_URL = os.getenv("OPENROUTER_BASE_URL", "https://openrouter.ai/api/v1")
+OPENROUTER_LLM_MODEL = os.getenv("OPENROUTER_LLM_MODEL", "meta-llama/llama-3.3-70b-instruct:free")
 
 # Text splitting settings
 CHUNK_SIZE = int(os.getenv("CHUNK_SIZE", "1000"))

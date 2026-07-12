@@ -38,11 +38,16 @@ st.set_page_config(
     layout="wide",
 )
 
-# ---------- Ollama Check ----------
+# ---------- Setup Check ----------
 
-# No API keys needed — Ollama runs locally. Make sure Ollama is running
-# (`ollama serve`) with the required models pulled
-# (`ollama pull llama3.2` and `ollama pull nomic-embed-text`).
+# LLM: OpenRouter (free cloud inference).
+# Embeddings: Ollama locally (nomic-embed-text).
+#
+# Make sure Ollama is running (`ollama serve`) with the embedding model:
+#   ollama pull nomic-embed-text
+#
+# For the LLM, set your OpenRouter API key in `.env`:
+#   OPENROUTER_API_KEY=sk-or-v1-...
 
 # ---------- Session Initialization ----------
 
