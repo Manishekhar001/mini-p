@@ -1,18 +1,12 @@
 """RAG retrieval + generation chain.
 
-Combines document retrieval and LLM generation using OpenRouter (cloud)
+Combines document retrieval and LLM generation using Groq (fast cloud)
 with local Ollama embeddings.
 """
 
-from langchain_openai import ChatOpenAI
+from langchain_groq import ChatGroq
 
-from src.config import (
-    OPENROUTER_API_KEY,
-    OPENROUTER_BASE_URL,
-    OPENROUTER_LLM_MODEL,
-    TEMPERATURE,
-    MAX_TOKENS,
-)
+from src.config import GROQ_API_KEY, GROQ_MODEL, TEMPERATURE, MAX_TOKENS
 
 # RAG system prompt template. Kept as a plain string (not a ChatPromptTemplate)
 # because rag_chat_node needs to splice this in front of the FULL conversation
@@ -25,17 +19,16 @@ RAG_SYSTEM_TEMPLATE = (
 )
 
 
-_llm_instance: ChatOpenAI | None = None
+_llm_instance: ChatGroq | None = None
 
 
-def create_llm() -> ChatOpenAI:
-    """Get a cached OpenRouter LLM instance (created once, reused after that)."""
+def create_llm() -> ChatGroq:
+    """Get a cached Groq LLM instance (created once, reused after that)."""
     global _llm_instance
     if _llm_instance is None:
-        _llm_instance = ChatOpenAI(
-            model=OPENROUTER_LLM_MODEL,
-            api_key=OPENROUTER_API_KEY,
-            base_url=OPENROUTER_BASE_URL,
+        _llm_instance = ChatGroq(
+            model=GROQ_MODEL,
+            api_key=GROQ_API_KEY,
             temperature=TEMPERATURE,
             max_tokens=MAX_TOKENS,
         )

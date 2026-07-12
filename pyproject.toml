@@ -1,12 +1,12 @@
 [project]
 name = "project"
 version = "0.1.0"
-description = "RAG Pipeline with LangGraph, Groq, FAISS, and Nomic Embeddings"
+description = "RAG Pipeline with LangGraph, Groq, FAISS, and Ollama Embeddings"
 readme = "README.md"
 requires-python = ">=3.14"
 dependencies = [
+    "langchain-groq",
     "langchain-ollama",
-    "langchain-openai",
     "langchain-community",
     "faiss-cpu",
     "langgraph",

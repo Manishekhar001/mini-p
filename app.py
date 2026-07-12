@@ -40,14 +40,14 @@ st.set_page_config(
 
 # ---------- Setup Check ----------
 
-# LLM: OpenRouter (free cloud inference).
+# LLM: Groq (fast cloud inference, free tier).
 # Embeddings: Ollama locally (nomic-embed-text).
 #
 # Make sure Ollama is running (`ollama serve`) with the embedding model:
 #   ollama pull nomic-embed-text
 #
-# For the LLM, set your OpenRouter API key in `.env`:
-#   OPENROUTER_API_KEY=sk-or-v1-...
+# For the LLM, set your Groq API key in `.env`:
+#   GROQ_API_KEY=gsk_...
 
 # ---------- Session Initialization ----------
 

@@ -2,7 +2,7 @@
 
 Orchestrates the RAG workflow with:
 - Groq LLM (via langchain-groq)
-- FAISS vector store with Nomic Embeddings
+- FAISS vector store with Ollama embeddings
 - LLM Judge that decides whether to use RAG or plain chat
 - SQLite checkpoint-based thread memory
 - Thread title management (first message as title)
@@ -200,6 +200,7 @@ def judge_node(state: ChatState) -> dict:
     user_message = messages[-1].content
     context = state.get("retrieved_context", "")
     resource_summary = get_resource_summary()
+
     use_rag = judge_relevance(user_message, context, resource_summary=resource_summary)
     return {"use_rag": use_rag}
 
